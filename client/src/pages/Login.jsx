@@ -33,14 +33,11 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen  bg-blueChat-50">
-      <header className="flex items-center justify-center p-4">
-        <h1 className="text-3xl">Welcome to wyd chat!</h1>
-      </header>
+    <div className="flex justify-center min-h-screen bg-blueChat-100 ">
       {!showRegisterForm ?
         <div className="min-h-screen flex flex-col items-center justify-center pb-40">
           <div className="shadow-xl bg-blueChat-200 p-8 rounded-lg">
-            <h3 className="text-xl mb-2">Login</h3>
+            <h3 className="text-xl mb-2 text-white font-semibold">Login</h3>
             <div className="flex flex-col items-center w-60">
               <form onSubmit={handleLogin}>
                 <input
@@ -48,7 +45,7 @@ export function Login() {
                   name="username"
                   placeholder="Username"
                   onChange={(event) => setUserName(event.target.value)}
-                  className="mb-2 p-2 rounded border bg-white border-gray-400 w-full"
+                  className="mb-2 p-2 rounded border bg-white border-gray-400 w-full glow"
                   required
                 />
                 <input
@@ -56,7 +53,7 @@ export function Login() {
                   name="password"
                   placeholder="Password"
                   onChange={(event) => setPassword(event.target.value)}
-                  className="mb-4 p-2 rounded border bg-white border-gray-400 w-full"
+                  className="mb-4 p-2 rounded border bg-white border-gray-400 w-full glow"
                   required
                 />
                 <button

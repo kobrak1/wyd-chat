@@ -1,0 +1,39 @@
+/* styles.css */
+:root {
+    --glow-color: #73e3dc; /* Set your desired glow color here */
+  }
+  
+
+/* background-blur.css */
+.bg-blur {
+    backdrop-filter: blur(60px);
+    background-image: url('./assets/default-avatar/bg_login.jpg'); /* Add your image URL here */
+    background-size: cover;
+    background-position: center;
+  }
+  
+/* background-blur.css */
+.blur-overlay {
+    /* Add styles for the blur overlay */
+    position: absolute;
+    inset: 0;
+    background-color: rgba(255, 255, 255, 0.5); /* Adjust the background color and opacity */
+    backdrop-filter: blur(60px); /* Apply the blur effect */
+    pointer-events: none; /* Allow interactions with the content below */
+  }
+
+.bd-filter {
+    backdrop-filter: blur(20px);
+}
+
+/* styles.css */
+.glow {
+    box-shadow: none;
+    transition: box-shadow 0.3s ease-in-out;
+  }
+  
+  .glow:focus {
+    box-shadow: 0 0 10px var(--glow-color), 0 0 20px var(--glow-color), 0 0 30px var(--glow-color);
+  }
+  
+  
