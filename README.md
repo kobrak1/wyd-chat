@@ -1,7 +1,6 @@
 # WYD Chat - Your Ultimate Chat Experience
 
-![wyd_chat_ss](https://github.com/kobrak1/wyd-chat/assets/114083611/735f5520-9211-4f38-b6e7-4ef5d974e1b1)
-
+![wyd_chat_ss2](https://github.com/kobrak1/wyd-chat/assets/114083611/17f0ac88-c338-4d82-985e-c8dcacc3f83f)
 
 WYD Chat is a real-time chat application designed to deliver a seamless and engaging communication experience. Whether it's for personal or professional use, WYD Chat offers a feature-rich platform for connecting with friends, family, or colleagues. This README provides an overview of the application, its features, and how to get started.
 
