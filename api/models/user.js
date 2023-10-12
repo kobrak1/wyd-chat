@@ -1,29 +1,57 @@
 const mongoose = require('mongoose')
+const jwt = require('jsonwebtoken');
+const { validateEmail } = require('../utils/helperFunctions');
 
 // TODO: Add contacts
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
-    required: true
+    required: true,
+    validate: [validateEmail, 'invalid email']
   },
   firstName: {
     type: String,
-    required: true
+    required: true,
+    minLength: 2
   },
   lastName: {
     type: String,
-    required: true
+    required: true,
+    minLength: 2
   },
   passwordHash: String,
-  avatarPhoto: String,
+  avatarPhoto: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'File'
+  },
   lastTimeOnline: Date,
+  socketId: String,
+  online: Boolean,
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
   chatRooms: [
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ChatRoom',
     },
   ],
-})
+},
+  {
+    methods: {
+      generateVerificationToken() {
+        const user = this
+        const verificationToken = jwt.sign(
+          { id: user._id },
+          process.env.USER_VERIFICATION_TOKEN_SECRET,
+          { expiresIn: '7d' }
+        );
+        return verificationToken;
+      }
+    }
+  }
+)
 
 userSchema.set('toJSON', {
   transform: (document, returnedObject) => {

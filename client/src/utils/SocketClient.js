@@ -6,7 +6,7 @@ export default class SocketClient {
   socket
 
   connect() {
-    this.socket = io('http://localhost:3003')
+    this.socket = io()
   }
 
   disconnect() {

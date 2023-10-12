@@ -1,39 +1,33 @@
 import { createSlice } from '@reduxjs/toolkit'
 import UserService from '../../services/usersService';
 import ChatRoomService from '../../services/chatRoomsService';
-import { isAfter, parseISO } from 'date-fns';
+import { compareDesc, parseISO } from 'date-fns';
+import { toast } from './notificationsReducer';
 
 function parseChatRooms(chatRooms) {
-  return chatRooms.map(chatRoom => {
-    return {
+  return chatRooms
+    .map(chatRoom => ({
       id: chatRoom?.id,
       title: `${chatRoom?.members[0]?.firstName} ${chatRoom?.members[0]?.lastName}`,
       messages: chatRoom.messages,
-      contact: {
-        ...chatRoom?.members[0],
-        lastMessage: chatRoom?.messages
-          .reduce((latestMessage, message) => {
-            if (message?.from !== chatRoom?.members[0]?.id) {
-              return latestMessage
-            }
+      contact: { ...chatRoom?.members[0] }
+    }))
+}
 
-            if (!latestMessage) {
-              return message
-            }
+function sortChatRoomsByLatestMessage(chatRooms) {
+  return [...chatRooms].sort((roomA, roomB) => {
+    const latestMessageA = roomA.messages.at(-1);
+    const latestMessageB = roomB.messages.at(-1);
 
-            const messageTimestamp = parseISO(message.timestamp);
-            const latestTimestamp = parseISO(latestMessage.timestamp);
+    if (!latestMessageA) return 1; // Place rooms with no messages at the end.
+    if (!latestMessageB) return -1;
 
-            if (isAfter(messageTimestamp, latestTimestamp)) {
+    const timestampA = parseISO(latestMessageA.timestamp);
+    const timestampB = parseISO(latestMessageB.timestamp);
 
-              return message;
-            }
-
-            return latestMessage;
-          }, null)
-      },
-    }
-  })
+    // Compare timestamps in descending order (latest first).
+    return compareDesc(timestampA, timestampB);
+  });
 }
 
 const initialState = { data: null, loading: false, error: null }
@@ -48,7 +42,7 @@ const userChatsSlice = createSlice({
       const parsedData = {
         ...data,
         activeChat: null,
-        chatRooms: parseChatRooms(data.chatRooms)
+        chatRooms: sortChatRoomsByLatestMessage(parseChatRooms(data.chatRooms))
       }
 
       return { ...state, data: parsedData, loading: false, error: null }
@@ -74,7 +68,6 @@ const userChatsSlice = createSlice({
         data: {
           ...state.data,
           chatRooms: [...state.data.chatRooms, ...parsedChatRoom],
-          activeChat: parsedChatRoom[0]
         }
       }
     },
@@ -103,7 +96,7 @@ const userChatsSlice = createSlice({
       if (!message?.id) {
         const error = {
           message:
-            'Error: Unable to send this message, please try again'
+            'Error: Unable to add this message, please try again'
         }
         console.error(error.message);
 
@@ -113,24 +106,32 @@ const userChatsSlice = createSlice({
         }
       }
 
-      const appendedMessageToActiveChat = { ...activeChat, messages: [...activeChat.messages, message] }
+      const destinationChatRoom = state.data.chatRooms?.find(chatRoom => chatRoom.id === message.chatRoomId)
+
+      // TODO: Get rid of activeChat state, handle it only with chatRooms
+      const appendedMessageToActiveChat = activeChat ? {
+        ...activeChat,
+        messages: destinationChatRoom.id === activeChat.id ? [...activeChat.messages, message] : activeChat.messages
+      }
+        : null
+
+
+      const appendedMessageToDestinationChatRoom = {
+        ...destinationChatRoom,
+        messages: [...destinationChatRoom.messages, message]
+      }
 
       return {
         ...state,
         data: {
           ...state.data,
           activeChat: appendedMessageToActiveChat,
-          chatRooms: state.data.chatRooms
+          chatRooms: sortChatRoomsByLatestMessage(state.data.chatRooms
             .map(chatRoom =>
-              chatRoom.id !== appendedMessageToActiveChat.id ? chatRoom : appendedMessageToActiveChat
-            )
+              chatRoom.id !== destinationChatRoom.id ? chatRoom : appendedMessageToDestinationChatRoom
+            ))
         }
       }
-    },
-    sendMessage: (state, action) => {
-      // * We don't add message to the state here because we are using the websockets as single source of truth.
-      // * When a receive message is received, the message is added from the middleware
-      return state
     },
     setUserChatsLoading(state) {
       state.loading = true
@@ -151,7 +152,6 @@ export const {
   createUserChatRoom,
   setActiveChat,
   appendChatRoomMessage,
-  sendMessage,
   setUserChatsLoading,
   setUserChatsError,
   resetState
@@ -169,6 +169,8 @@ export const initializeUserChats = (userId) => {
     catch (error) {
       console.error(error)
       dispatch(setUserChatsError(`Unable to fetch your chats data: ${error.message}: ${error.response?.data?.error}`));
+      dispatch(toast(`Unable to fetch your chats data: ${error.message}: ${error.response?.data?.error}`, 'error'))
+
     }
   }
 }
@@ -179,11 +181,12 @@ export const createUserChatRoomAction = (newChatRoom) => {
       const { data: chatRoom } = await ChatRoomService.createChatRoom(newChatRoom)
 
       dispatch(createUserChatRoom([chatRoom]))
-
+      dispatch(activateChat(chatRoom.id))
     }
     catch (error) {
       console.error(error)
       dispatch(setUserChatsError(`Unable to create new chat: ${error.message}: ${error.response?.data?.error}`));
+      dispatch(toast(`Unable to create new chat: ${error.message}: ${error.response?.data?.error}`, 'error'))
     }
   }
 }
@@ -196,6 +199,8 @@ export const activateChat = (chatId) => {
     catch (error) {
       console.error(error)
       dispatch(setUserChatsError(`Unable to select that chat: ${error.message}`));
+      dispatch(toast(`Unable to select that chat: ${error.message}`, 'error'))
+
     }
   }
 }
@@ -205,13 +210,12 @@ export const createChatRoomMessage = (newMessage) => {
     try {
       const { data: message } = await ChatRoomService.createMessage(newMessage)
 
-      console.log('New created message', message);
-
-      dispatch(sendMessage({ message }))
+      dispatch(appendChatRoomMessage({ message }))
     }
     catch (error) {
       console.error(error)
-      dispatch(setUserChatsError(`Unable to send your message: ${error.message}: ${error.response?.data?.error}`));
+      dispatch(setUserChatsError(`Unable to send your message: ${error.message}: ${error.response?.data?.error}`))
+      dispatch(toast(`Unable to send your message: ${error.message}: ${error.response?.data?.error}`, 'error'))
     }
   }
 }

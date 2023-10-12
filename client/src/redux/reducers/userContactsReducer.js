@@ -1,12 +1,13 @@
 import { createSlice, current } from '@reduxjs/toolkit'
 import ChatInstance from '../../services/ChatInstance';
+import { toast } from './notificationsReducer';
 
 const initialState = {
   data: null,
-  onlineUsersByUsername: [],
+  onlineUsersById: [],
   loading: false,
   error: null,
-  typingUsers: []
+  typingUsersById: []
 }
 
 const usersSlice = createSlice({
@@ -17,25 +18,31 @@ const usersSlice = createSlice({
       const { data, currentUserId } = action.payload
 
       const filterCurrentUser = data.filter(user => user.id !== currentUserId)
+        .map(user => ({ ...user, fullName: `${user.firstName} ${user.lastName}` }))
 
       return { ...state, data: filterCurrentUser, loading: false, error: null }
     },
-    setOnlineUsersByUsername: (state, action) => {
-      return { ...state, onlineUsersByUsername: action.payload }
+    // TODO: Remove method below when migration to webhooks is completed
+    setOnlineUsersById: (state, action) => {
+      return { ...state, onlineUsersById: action.payload }
     },
     addUser: (state, action) => {
-      return { ...state, data: [...state.data, action.payload] }
+      const user = action.payload
+
+      const userWithFullName = { ...user, fullName: `${user.firstName} ${user.lastName}` }
+
+      return { ...state, data: [...state.data, userWithFullName] }
     },
     setTypingUser: (state, action) => {
-      state.typingUsers = [action.payload, ...[...state.typingUsers].filter(username => username !== action.payload)]
+      return { ...state, typingUsersById: [...state.typingUsersById, action.payload] }
     },
-    removeTypingUser: (state, { payload }) => {
-      state.typingUsers = state.typingUsers.filter(username => username !== payload)
+    removeTypingUser: (state, action) => {
+      return { ...state, typingUsersById: state.typingUsersById.filter(userId => userId !== action.payload) }
     },
-    sendThisUserIsTyping: (state, { payload }) => {
+    sendThisUserIsTyping: (state, action) => {
 
     },
-    sendThisUserStoppedTyping: (state, { payload }) => {
+    sendThisUserStoppedTyping: (state, action) => {
 
     },
     setUsersLoading: (state) => {
@@ -55,7 +62,7 @@ const usersSlice = createSlice({
 export const {
   setUsers,
   addUser,
-  setOnlineUsersByUsername,
+  setOnlineUsersById,
   setTypingUser,
   removeTypingUser,
   sendThisUserIsTyping,
@@ -73,14 +80,12 @@ export function initializeUserContacts(currentUserId) {
     try {
       const { data } = await ChatInstance.get('/users')
 
-      console.log('data', data);
-
       dispatch(setUsers({ data: data, currentUserId }))
     } catch (error) {
       // Not handling errors
       console.error(error)
-      dispatch(setUsersError(`Unable to fetch data data: ${error.message}: ${error.response?.data?.error}`));
-
+      dispatch(setUsersError(`Unable to fetch users data: ${error.message}: ${error.response?.data?.error}`));
+      dispatch(toast(`Unable to fetch users data: ${error.message}: ${error.response?.data?.error}`, 'error'))
     }
   }
 }

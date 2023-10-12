@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { LocalStorageManager } from '../utils/LocalStorageManager';
 
 // Create a new Axios instance with custom configuration
 let ChatInstance = axios.create({
-  baseURL: 'http://localhost:3003/api',
+  baseURL: '/api',
   timeout: 10000, // Request timeout in milliseconds (10 seconds in this example)
   headers: {
     'Content-Type': 'application/json',
@@ -13,18 +14,15 @@ let ChatInstance = axios.create({
 ChatInstance.interceptors.request.use(
   (config) => {
     // You can modify the request config before it is sent
-    const user = localStorage.getItem('user')
+    const user = LocalStorageManager.getItem('user')
 
     if (user) {
-      const token = JSON.parse(user).token
-      config.headers.Authorization = `Bearer ${token}`
+      config.headers.Authorization = `Bearer ${user.token}`
     }
 
     return config;
   },
   (error) => {
-    console.error(`${error.name}: ${error.message}`);
-
     // Handle request errors here
     return Promise.reject(error);
   }
@@ -37,11 +35,6 @@ ChatInstance.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Handle response errors here
-    console.error(`${error.name}: ${error.message}`);
-
-    // TODO: Trigger notification here
-
     // You can also re-throw the error to let the calling code handle it
     return Promise.reject(error);
   }

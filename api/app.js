@@ -1,5 +1,6 @@
 const { MONGODB_URI } = require('./utils/config')
 const express = require('express')
+const helmet = require('helmet')
 require('express-async-errors')
 const { createServer } = require('http');
 const cors = require('cors')
@@ -10,7 +11,9 @@ const middleware = require('./utils/middleware')
 const logger = require('./utils/logger')
 const mongoose = require('mongoose')
 const morgan = require('morgan')
-const { Server } = require('socket.io');
+const fallback = require('express-history-api-fallback');
+const SocketServer = require('./utils/SocketServer');
+const verifyRouter = require('./controllers/verify');
 
 const app = express()
 
@@ -29,38 +32,36 @@ mongoose
     logger.error('Error connecting to MongoDB:', error.message)
   })
 
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        'img-src': 'https: data:' // * Allow images from anywhere as long as it is an https link
+      },
+    },
+  })
+);
+
 app.use(cors())
+app.use(express.static('build'))
 app.use(express.json())
 
 app.use(
   morgan(':method :url :status :res[content-length] - :response-time ms :chatRoom')
 )
 
-// TODO Wrap it up in a middleware and contemplate all the actions needed
-const io = new Server(httpServer, {
-  cors: {
-    origin: 'http://localhost:5173'
-  }
-});
+const socketServer = SocketServer.getInstance(httpServer)
 
-io.on('connection', (socket) => {
-  console.log(`⚡: ${socket.id} user just connected!`);
-  socket.on('disconnect', () => {
-    console.log('🔥: A user disconnected');
-  });
+app.use(middleware.tokenExtractor)
 
-  // * Send Message
-  socket.on('send message', (message) => {
+app.use(middleware.attachWebSocket(socketServer))
 
-    io.emit('receive message', message)
-  })
-});
+app.use('/api/verify', verifyRouter);
 
 app.use('/api/login', loginRouter)
 
 app.use('/api/users', usersRouter)
-
-app.use(middleware.tokenExtractor)
 
 app.use('/api/chatRooms', chatRoomsRouter)
 
@@ -68,6 +69,8 @@ if (process.env.NODE_ENV === 'test') {
   const testingRouter = require('./controllers/testing')
   app.use('/api/testing', testingRouter)
 }
+
+app.use(fallback('index.html', { root: 'build' }));
 
 app.use(middleware.unknownEndpoint)
 app.use(middleware.errorHandler)

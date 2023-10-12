@@ -1,7 +1,7 @@
 export class LocalStorageManager {
   static setItem(key, value) {
     try {
-      localStorage.setItem(key, value);
+      localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
       console.error('Error setting item in localStorage:', error);
     }

@@ -1,8 +1,9 @@
 import { createSlice } from '@reduxjs/toolkit'
 import LoginService from '../../services/loginService';
-// import { setNotification } from './notificationReducer'
+import UsersService from '../../services/usersService';
 import { LocalStorageManager } from '../../utils/LocalStorageManager';
 import { resetUserChatsState } from './userChatsReducer';
+import { toast } from './notificationsReducer';
 
 const { setItem, removeItem } = LocalStorageManager
 
@@ -17,7 +18,7 @@ const loggedUserSlice = createSlice({
   initialState: initialState,
   reducers: {
     login(state, action) {
-      setItem('user', JSON.stringify(action.payload));
+      setItem('user', action.payload)
 
       return {
         ...state,
@@ -30,11 +31,21 @@ const loggedUserSlice = createSlice({
       removeItem('user')
 
       return initialState
+    },
+    updateUserDetails(state, action) {
+      const { firstName, lastName, avatarPhoto } = action.payload
+
+      const updatedUser = { ...state.user, firstName, lastName, avatarPhoto }
+
+      removeItem('user')
+      setItem('user', updatedUser)
+
+      return { ...state, user: updatedUser }
     }
   },
 })
 
-export const { login, logout } = loggedUserSlice.actions
+export const { login, logout, updateUserDetails } = loggedUserSlice.actions
 
 export const loginUser = (credentials) => {
   return async (dispatch) => {
@@ -42,10 +53,23 @@ export const loginUser = (credentials) => {
       const loggedInUser = await LoginService.login(credentials)
 
       dispatch(login(loggedInUser.data))
-      // dispatch(setNotification(`Welcome ${loggedInUser.name}`, 'success', 5))
     } catch (error) {
       console.error(error);
-      // dispatch(setNotification('Invalid credentials', 'alert', 5))
+      dispatch(toast(error?.response?.data.error, 'error'))
+    }
+  }
+}
+
+export const updateUserAction = (updatedUser) => {
+  return async (dispatch) => {
+    try {
+      const { data } = await UsersService.updateUser(updatedUser)
+
+      dispatch(updateUserDetails(data.updatedUser))
+      dispatch(toast('User successfully updated', 'success'))
+    } catch (error) {
+      console.error(error)
+      dispatch(toast(error?.response?.data.error, 'error'))
     }
   }
 }
@@ -56,9 +80,9 @@ export const keepUserSessionAlive = (user) => {
   }
 }
 
-export const logoutUser = () => {
+export const logoutUser = ({ id }) => {
   return (dispatch) => {
-    dispatch(logout(null))
+    dispatch(logout(id))
     dispatch(resetUserChatsState())
   }
 }

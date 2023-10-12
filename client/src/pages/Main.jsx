@@ -1,18 +1,18 @@
-import { Sidebar } from '../components/Sidebar/Sidebar';
+import { Sidebar } from '../components/Sidebar';
 import { useEffect } from 'react';
 import { Outlet, useParams, useNavigate } from 'react-router';
-import { Header } from '../components/Header/Header';
-import { useDispatch, useSelector } from 'react-redux'
-import { resetUserChatsState } from '../redux/reducers/userChatsReducer';
-import { logoutUser } from '../redux/reducers/userAuthenticationReducer';
+import { useSelector } from 'react-redux'
+import { EmptyChat } from '../components/Chat/EmptyChat';
+import { Redirect } from '../components/Redirect/Redirect';
+import { Loader } from '../components/Loader/Loader';
+import { SidebarProvider } from '../context/SidebarContext';
 
 function Main() {
   const { id } = useParams()
-  const dispatch = useDispatch()
   const navigate = useNavigate()
 
   const { data: chatRooms, loading: chatsLoading, error: chatsError } = useSelector(state => state.userChats)
-  const { data: users, loading: usersLoading, error: usersError } = useSelector(state => state.userContacts)
+  const { loading: usersLoading, error: usersError } = useSelector(state => state.userContacts)
 
   const activeChatId = chatRooms?.activeChat?.id
 
@@ -25,52 +25,25 @@ function Main() {
     }
   }, [activeChatId, id, navigate, chatsError, usersError])
 
-  if (chatsLoading || usersLoading) {
-    // TODO: Loading component
-    return (
-      <div className='h-full w-full flex justify-center mt-10'>
-        Loading...
-      </div>
-    )
+  if (chatsError || usersError) {
+    <Redirect />
   }
 
-  if (chatsError || usersError) {
-    // TODO: Keep rendering the page and show chatsError or usersError notification if possible
-    setTimeout(() => {
-      dispatch(resetUserChatsState())
-
-      const isMissingTokenError =
-        chatsError.message.toLowerCase().includes('missing authorization token') ||
-        usersError.message.toLowerCase().includes('missing authorization token')
-
-      if (isMissingTokenError) {
-        return dispatch(logoutUser())
-      }
-
-      navigate('/')
-    }, 1500);
-
-
-    return (
-      <div className='h-full w-full flex flex-col items-center mt-10'>
-        <h1 className='text-2xl'>Redirecting</h1>
-        <h3 className='text-lg'>{chatsError.message || usersError.message}</h3>
-      </div>
-    )
+  if (chatsLoading || usersLoading) {
+    <Loader />
   }
 
   return (
-    <div className='w-full h-full flex flex-nowrap'>
-      <Sidebar chats={chatRooms?.chatRooms} users={users} activeChatId={activeChatId} />
-      {activeChatId ?
-        <div className='flex flex-1 flex-col'>
-          <Header activeChat={chatRooms.activeChat} />
+    <SidebarProvider>
+      <main id='main-container' className='w-full h-screen flex flex-nowrap bg-blur'>
+        <Sidebar />
+        {activeChatId ?
           <Outlet />
-        </div>
-        :
-        <div className='w-2/3 bg-blueChat-50' />
-      }
-    </div>
+          :
+          <EmptyChat />
+        }
+      </main>
+    </SidebarProvider>
   );
 }
 

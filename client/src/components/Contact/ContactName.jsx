@@ -1,5 +1,5 @@
 export function ContactName({ name }) {
   return (
-    <h3 className="text-l">{name}</h3>
+    <h3 className="text-l font-semibold">{name}</h3>
   )
 }

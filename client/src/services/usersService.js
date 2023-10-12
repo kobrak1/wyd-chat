@@ -10,12 +10,34 @@ async function getUser(userId) {
 
 
 async function register(userData) {
-  const register = await ChatInstance.post(`${baseURL}`, userData)
+  const register = await ChatInstance.post(
+    `${baseURL}`,
+    userData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+    }
+  )
 
   return register
 }
 
+async function updateUser(updatedUser) {
+  const updateUser = await ChatInstance.put(
+    `${baseURL}/${updatedUser.id}`,
+    updatedUser,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+    })
+
+  return updateUser
+}
+
 export default {
   getUser,
-  register
+  register,
+  updateUser
 }

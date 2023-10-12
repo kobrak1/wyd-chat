@@ -1,42 +1,60 @@
 import { MessagesList } from './MessagesList';
 import { ChatInput } from './ChatInput';
-import { useParams } from 'react-router';
-import { useDispatch, useSelector } from 'react-redux';
-import { createChatRoomMessage } from '../../redux/reducers/userChatsReducer';
+import { useSelector } from 'react-redux';
+import { ChatHeader } from './ChatHeader';
+import { useSidebarContext } from '../../hooks/useSidebarContext';
+import clsx from 'clsx';
+import { useSearch } from '../../hooks/useSearch';
+import { useState } from 'react';
 
-function Chat() {
-  const { id } = useParams()
+export function Chat() {
+  const [showSearchChat, setShowSearchChat] = useState(false)
 
-  const { user } = useSelector(state => state.userAuthentication)
+  const { sidebarOpen } = useSidebarContext()
   const activeChat = useSelector((state) => state.userChats).data.activeChat
 
-  const dispatch = useDispatch()
+  const {
+    filteredData,
+    searchInput,
+    chatInputRef,
+    clearSearchValue
+  } = useSearch({ data: activeChat.messages, searchKey: 'text' })
 
-  function submitNewMessage(text) {
-    const newMessage = {
-      from: user.id,
-      to: activeChat.contact.id,
-      text,
-      chatRoomId: id
+  function handleShowSearchChat() {
+    // * If the value is false when called it means that we are opening the search bar
+    if (!showSearchChat) {
+      // * We use a small delay to avoid the button stealing the focus away when clicked
+      setTimeout(() => {
+        chatInputRef.current.focus()
+      }, 50);
     }
 
-    dispatch(createChatRoomMessage(newMessage))
+    setShowSearchChat(showingChat => {
+      if (showingChat) {
+        clearSearchValue()
+        return !showingChat
+      }
+      return !showingChat
+    })
   }
 
   return (
-    <div className='flex flex-col h-full bg-blueChat-50' >
-      {activeChat.messages &&
-        <>
-          <div className='flex-grow'>
-            <div className='relative flex flex-col h-full'>
-              <MessagesList messages={activeChat.messages} />
-            </div>
-          </div>
-          <ChatInput submitNewMessage={submitNewMessage} />
-        </>
-      }
+    <div className={clsx('flex flex-1 flex-col blur-overlay', sidebarOpen && 'hidden md:flex')}>
+      <ChatHeader activeChat={activeChat} handleShowSearchChat={handleShowSearchChat} />
+      <div id='chat-search-container' className={clsx(!showSearchChat && 'hidden', 'w-full p-2')} >
+        {searchInput}
+      </div>
+      <div
+        id='chat-container'
+        className='flex flex-col flex-grow'
+      >
+        {activeChat?.messages &&
+          <>
+            <MessagesList messages={filteredData} existingData={activeChat.messages.length > 0} />
+            <ChatInput />
+          </>
+        }
+      </div>
     </div>
   );
 }
-
-export default Chat;

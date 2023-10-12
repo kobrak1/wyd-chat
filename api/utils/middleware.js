@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken')
 const User = require('../models/user')
 const { default: mongoose } = require('mongoose')
 const ChatRoom = require('../models/chatRoom')
+const multer = require('multer')
+const S3ClientManager = require('./S3ClientManager')
 
 const unknownEndpoint = (req, res) => {
   res.status(404).send({ error: 'Unknown endpoint' })
@@ -28,37 +30,42 @@ const errorHandler = (error, req, res, next) => {
     })
   }
 
+  else if (error.name === 'Invalid login') {
+    return res.status(400).json({
+      error: error.message,
+    })
+  }
+
   logger.error(error.message)
 
   next(error)
 }
 
-const tokenExtractor = (req, res, next) => {
+const getTokenFrom = req => {
   const authorization = req.get('authorization')
-
-  if (!authorization) {
-    return res.status(401).json({
-      error: 'Missing authorization token'
-    })
+  if (authorization && authorization.toLowerCase().startsWith('bearer ')) {
+    return authorization.substring(7)
   }
+  return null
+}
 
-  if (authorization.toLowerCase().startsWith('bearer ')) {
-    const token = authorization.substring(7)
-
-    req.token = jwt.verify(token, process.env.SECRET) // Verify token validity and decode token (returns the Object which the token was based on)
-
-    next()
-  }
+const tokenExtractor = (req, res, next) => {
+  req.token = getTokenFrom(req)
+  next()
 }
 
 const userExtractor = async (req, res, next) => {
-  if (!req.token?.id) {
+  const token = getTokenFrom(req)
+
+  const decodedToken = jwt.verify(token, process.env.SESSION_TOKEN_SECRET)
+
+  if (!decodedToken.id) {
     return res.status(401).json({
-      error: 'Invalid authorization token'
+      error: 'invalid token'
     })
   }
 
-  const findUser = await User.findById(req.token.id)
+  const findUser = await User.findById(decodedToken.id)
 
   if (!findUser) {
     return res.status(404).json({
@@ -66,12 +73,22 @@ const userExtractor = async (req, res, next) => {
     })
   }
 
-  req.user = await User.findById(req.token.id)
+  req.user = await User.findById(decodedToken.id)
 
   next()
 }
 
 const chatRoomExtractor = async (req, res, next) => {
+  const token = getTokenFrom(req)
+
+  const decodedToken = jwt.verify(token, process.env.SESSION_TOKEN_SECRET)
+
+  if (!decodedToken.id) {
+    return res.status(401).json({
+      error: 'invalid token'
+    })
+  }
+
   const chatRoom = await ChatRoom.findById(req.params.id)
 
   if (!chatRoom) {
@@ -95,11 +112,52 @@ function isValidId(req, res, next) {
   next()
 }
 
+function attachWebSocket(socketServer) {
+  return (req, res, next) => {
+    req.socketServer = socketServer
+    next()
+  };
+}
+
+// * Configure Multer and return the upload middleware
+function fileExtractor(req, res, next) {
+  const storage = multer.memoryStorage();
+  const upload = multer({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 } // * Max file size is 5MBs
+  }); // TODO: Set file size limit
+
+  // * Create a middleware for handling file uploads
+  const uploadFile = upload.single('file');
+
+  // * Middleware to handle file uploads and convert to Buffers
+  return uploadFile(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      // * Handle Multer errors (e.g., file size exceeded)
+      return res.status(400).json({ error: 'File upload error' });
+    } else if (err) {
+      // * Handle other errors
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    next();
+  });
+}
+
+function s3Instance(req, res, next) {
+  req.s3 = S3ClientManager.getInstance()
+
+  next()
+}
+
 module.exports = {
   unknownEndpoint,
   errorHandler,
   tokenExtractor,
   userExtractor,
+  chatRoomExtractor,
   isValidId,
-  chatRoomExtractor
+  attachWebSocket,
+  fileExtractor,
+  s3Instance
 }

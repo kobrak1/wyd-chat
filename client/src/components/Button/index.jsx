@@ -1,6 +1,6 @@
-export function Button({ text }) {
+export function Button({ text, ...props }) {
   return (
-    <button>
+    <button {...props}>
       {text}
     </button>
   )

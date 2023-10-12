@@ -10,7 +10,16 @@ async function createChatRoom(newChatRoom) {
 
 async function createMessage(newMessage) {
   const id = newMessage.chatRoomId
-  const message = await ChatInstance.post(`${baseURL}/${id}/messages`, newMessage)
+
+  const message = await ChatInstance.post(
+    `${baseURL}/${id}/messages`,
+    newMessage,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+    }
+  )
 
   return message
 }

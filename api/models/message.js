@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema({
   from: {
@@ -13,7 +13,18 @@ const messageSchema = new mongoose.Schema({
   },
   text: {
     type: String,
-    required: true,
+    required: function () {
+      return !this.file;
+    },
+    minLength: 1,
+    maxLength: [4000, 'Too many characters, max length is 4000']
+  },
+  file: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'File',
+    required: function () {
+      return !this.text
+    },
   },
   timestamp: {
     type: Date,
@@ -24,6 +35,10 @@ const messageSchema = new mongoose.Schema({
     ref: 'ChatRoom',
     required: true
   },
+  unread: {
+    type: Boolean,
+    default: true
+  }
 })
 
 messageSchema.set('toJSON', {
