@@ -26,7 +26,7 @@ WYD Chat leverages the following technologies to provide a robust and user-frien
 1. **Clone the Repository**:
 
    ```bash
-   git clone [](https://github.com/kobrak1/wyd-chat.git)
+   git clone https://github.com/kobrak1/wyd-chat.git
    ```
 
 2. **Navigate to the Project Directory**:
